@@ -1,17 +1,15 @@
 package com.eryi;
 
+import org.springframework.boot.loader.jar.JarFile;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
+import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
+
 
 /**
  * @description:
@@ -22,16 +20,17 @@ import java.util.jar.JarFile;
 public class testController {
 
     private Set<JarEntry> parentdepJars=new HashSet<>();
+    private Map<String,GavInfo> gavInfos=new HashMap<>();
 
     @RequestMapping("/test")
-    public void test(){
+    public void test() throws Exception{
         try {
-            //1.获取当前改成打包出的jar包
+            //1.获取当前打包出的jar包
             String parentJarPath=this.getClass().getClassLoader().getResource("").getPath().split("!")[0];
             if(parentJarPath.startsWith("file:/")){
                 parentJarPath=parentJarPath.replaceAll("file:/","");
             }
-            JarFile jar=new JarFile(parentJarPath);
+            JarFile jar=new JarFile(new File(parentJarPath));
             //2.遍历当前jar包中所有资源，获得依赖的jar包列表
             Enumeration<JarEntry> parentEntries=jar.entries();
             while(parentEntries.hasMoreElements()){
@@ -45,49 +44,46 @@ public class testController {
                 }
             }
 
-            //3.遍历当前jar包的jar依赖列表
+            //3.遍历当前jar包的jar依赖列表,获取每个依赖的GAV坐标
             for (JarEntry jarEntry:parentdepJars){
-                JarFile jarEntryTemp2=new JarFile(jarEntry.getName());
-                Enumeration<JarEntry> childEntries=jarEntryTemp2.entries();
-                while(childEntries.hasMoreElements()) {
-                    JarEntry jarEntry1=childEntries.nextElement();
-                    if (jarEntry1.getName().endsWith("pom.properties")) {
-                        Properties properties = new Properties();
-                        properties.load(this.getClass().getResourceAsStream("/" + jarEntry1.getName()));
-                        Enumeration propertyNames = properties.propertyNames();
-                        while (propertyNames.hasMoreElements()) {
-                            System.out.println(properties.get(propertyNames.nextElement()));
-                        }
+                JarFile innerJar=jar.getNestedJarFile(jarEntry);
+                GavInfo gavInfo=new GavInfo();
+                Attributes attributes=innerJar.getManifest().getMainAttributes();
+                Set set=attributes.keySet();
+                Object groupIdKey=null;
+                Object artifactIdKey=null;
+                Object versionKey=null;
+                for (Object o:set){
+                    if("Implementation-Vendor-Id".equals(o.toString())){
+                        groupIdKey=o;
+                    }
+                    if("Implementation-Title".equals(o.toString())){
+                        artifactIdKey=o;
+                    }
+                    if("Implementation-Version".equals(o.toString())){
+                        versionKey=o;
                     }
                 }
+                Object groupId=attributes.get(groupIdKey);
+                Object artifactId=attributes.get(artifactIdKey);
+                Object version=attributes.get(versionKey);
+                if(groupId!=null) {
+                    gavInfo.setGroupId(groupId.toString());
+                }
+                if(artifactId!=null){
+                    gavInfo.setArtifactId(artifactId.toString());
+                }
+                if(version!=null){
+                    gavInfo.setVersion(version.toString());
+                }
+                gavInfos.put(groupId+"-"+artifactId,gavInfo);
             }
-//            for (String jarName:jars) {
-//                System.out.println(jarName);
+//            Set<String> keys=gavInfos.keySet();
+//            for (String key:keys) {
+//                System.out.println(gavInfos.get(key));
 //            }
         } catch (IOException e) {
             e.printStackTrace();
         }
-//        try {
-//            File file =new File(this.getClass().getClassLoader().getResource("/lib").getPath());
-//            File[] files=file.listFiles();
-//            for (File f:files) {
-//                JarFile jarFile=new JarFile(f.getCanonicalPath());
-//                System.out.println(jarFile.getName());
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        Enumeration<JarEntry> jarEntrys=jarFile.entries();
-//        while (jarEntrys.hasMoreElements()){
-//            JarEntry jarEntry=jarEntrys.nextElement();
-//            if (jarEntry.getName().endsWith("pom.properties")){
-//                Properties properties=new Properties();
-//                properties.load(test.class.getResourceAsStream("/"+jarEntry.getName()));
-//                Enumeration propertyNames=properties.propertyNames();
-//                while(propertyNames.hasMoreElements()){
-//                    System.out.println(properties.get(propertyNames.nextElement()));
-//                }
-//            }
-////        }
     }
 }
