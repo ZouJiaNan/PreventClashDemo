@@ -17,13 +17,12 @@ import java.util.jar.JarEntry;
  * @date: 2022/1/24 15:29
  */
 @RestController
-public class testController {
+public class ClashPreventUtils {
 
     private Set<JarEntry> parentdepJars=new HashSet<>();
     private Map<String,GavInfo> gavInfos=new HashMap<>();
 
-    @RequestMapping("/test")
-    public void test() throws Exception{
+    public void check() throws Exception{
         try {
             //1.获取当前打包出的jar包
             String parentJarPath=this.getClass().getClassLoader().getResource("").getPath().split("!")[0];
@@ -76,14 +75,16 @@ public class testController {
                 if(version!=null){
                     gavInfo.setVersion(version.toString());
                 }
+                String key=groupId+"-"+artifactId;
+                if(gavInfos.containsKey(key)){
+                    System.out.println("依赖冲突:"+innerJar.getName());
+                }
                 gavInfos.put(groupId+"-"+artifactId,gavInfo);
             }
-//            Set<String> keys=gavInfos.keySet();
-//            for (String key:keys) {
-//                System.out.println(gavInfos.get(key));
-//            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
 }
