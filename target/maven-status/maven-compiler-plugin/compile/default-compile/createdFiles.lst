@@ -1,4 +1,5 @@
 com\eryi\testController.class
 com\eryi\Main.class
-com\eryi\JarUtil.class
+com\eryi\ClashPreventUtils$GavInfo.class
+com\eryi\ClashPreventUtils.class
 com\eryi\GavInfo.class
